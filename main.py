@@ -32,28 +32,6 @@ ultra_ss = UltrasonicSensor(Port.S2)
 
 # =============================================================
 
-kp = 1.25 # 가중치
-N,E,S,W = 1,2,3,4
-
-left_reflection = left_cs.reflection()
-right_reflection = right_cs.reflection()
-
-is_dis = 0
-is_in_color = True
-
-directions = [
-        [-1, 0],
-        [0, 1],
-        [1, 0],
-        [0, -1]
-    ]
-
-now_x, now_y = (0,0)
-
-class Q:
-    def __init__(self):
-        self.inven = []
-
 def move_block(n = 1,speed = 150):
     global is_grap_block, is_dis, now_x, now_y, grid
 
@@ -108,16 +86,16 @@ def turn_min(target):
     global now_dir
 
     deff = (target - now_dir) % 4
-    angle = [0, 93, 1808, -93][deff]
+    angle = [0, 93, 188, -93][deff]
     robot.turn(angle)
     now_dir = target
 
+    # 회전 보정
     left_reflection = left_cs.reflection()
     right_reflection = right_cs.reflection()
 
     error = left_reflection - right_reflection
 
-    # 회전 보정
     while abs(error) < 20:
         turn_rate = kp * error
         robot.drive(0, turn_rate)
@@ -129,22 +107,6 @@ def turn_min(target):
         error = left_reflection - right_reflection
 
     robot.stop()
-
-
-def manhattan_load(st, gl):
-    dx,dy = gl[0] - st[0], gl[1] - st[1]
-
-    if dx != 0:
-        taget_dir = S if dx > 0 else N
-        turn_min(taget_dir)
-
-        move_block(abs(dx))
-
-    if dy != 0:
-        taget_dir = E if dy > 0 else W
-        turn_min(taget_dir)
-
-        move_block(abs(dy))
 
 def at_color(color_loc, arrive = False):
     global is_in_color
@@ -213,19 +175,7 @@ def release_object(is_b = False):
 
         turn_min(E)
 
-#-----------------------------------------------------------
-
-block_distance = [[250,370],
-                  [670,748]]
-
-want_x, want_y = (0,0)
-
-is_clear = [0, 0, 0, 0] #1 2 3 , 5 9, 6 10, 7 11
-clear_loc = 0
-
 def check_block():
-    global want_x, want_y
-
     i = 0
     while i < len(block_distance):
         dis = ultra_ss.distance()
@@ -250,11 +200,20 @@ def check_block():
     move_block(i+1)
     manhattan_load((now_x, now_y),(0,0))
 
-grid = [
-    [0,1,1,2],
-    [1,1,1,2],
-    [1,1,1,2]
-]
+def manhattan_load(st, gl):
+    dx,dy = gl[0] - st[0], gl[1] - st[1]
+
+    if dx != 0:
+        taget_dir = S if dx > 0 else N
+        turn_min(taget_dir)
+
+        move_block(abs(dx))
+
+    if dy != 0:
+        taget_dir = E if dy > 0 else W
+        turn_min(taget_dir)
+
+        move_block(abs(dy))
 
 #-----------------------------------------------------------
 
@@ -265,13 +224,43 @@ robot.settings(
     turn_acceleration=100
 )
 
-ev3.speaker.beep()
+directions = [
+        [-1, 0],
+        [0, 1],
+        [1, 0],
+        [0, -1]
+    ]
 
-is_grap_block = False
+grid = [
+    [0,1,1,2],
+    [1,1,1,2],
+    [1,1,1,2]
+]
 
+N,E,S,W = 1,2,3,4
+
+now_x, now_y = (0,0)
 now_dir = E
 
 block_color = "G"
+
+kp = 1.25 # 가중치
+
+is_dis = 0
+is_grap_block = False
+
+is_clear = [0, 0, 0, 0] #1 2 3 , 5 9, 6 10, 7 11
+clear_loc = 0
+
+is_in_color = True
+
+block_distance = [[250,370],
+                  [670,748]]
+
+#--------------------------------------------------------
+
+ev3.speaker.beep()
+
 
 while True:
     if any(ev3.buttons.pressed()):
