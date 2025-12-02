@@ -41,6 +41,13 @@ right_reflection = right_cs.reflection()
 is_dis = 0
 is_in_color = True
 
+directions = [
+        [-1, 0],
+        [0, 1],
+        [1, 0],
+        [0, -1]
+    ]
+
 now_x, now_y = (0,0)
 
 class Q:
@@ -49,13 +56,6 @@ class Q:
 
 def move_block(n = 1,speed = 150):
     global is_grap_block, is_dis, now_x, now_y, grid
-
-    directions = [
-        [-1, 0],
-        [0, 1],
-        [1, 0],
-        [0, -1]
-    ]
 
     for _ in range(n):
         while True:
@@ -112,35 +112,39 @@ def turn_min(target):
     robot.turn(angle)
     now_dir = target
 
-    robot.drive(100, 0)
-    wait(250)
+    left_reflection = left_cs.reflection()
+    right_reflection = right_cs.reflection()
+
+    error = left_reflection - right_reflection
+
+    # 회전 보정
+    while abs(error) < 20:
+        turn_rate = kp * error
+        robot.drive(0, turn_rate)
+        wait(10)
+
+        left_reflection = left_cs.reflection()
+        right_reflection = right_cs.reflection()
+
+        error = left_reflection - right_reflection
+
     robot.stop()
 
 
-def manhattan_load(st, gl, now_dir):
+def manhattan_load(st, gl):
     dx,dy = gl[0] - st[0], gl[1] - st[1]
-
-    print(dx, dy)
 
     if dx != 0:
         taget_dir = S if dx > 0 else N
-        now_dir = turn_min(now_dir, taget_dir)
-        step = abs(dx)
+        turn_min(taget_dir)
 
-        for _ in range(step):
-            move_block()
-            dx += 1 if taget_dir == S else -1
-
-    print(dx, dy)
+        move_block(abs(dx))
 
     if dy != 0:
         taget_dir = E if dy > 0 else W
-        now_dir = turn_min(now_dir, taget_dir)
-        step = abs(dy)
+        turn_min(taget_dir)
 
-        for _ in range(step):
-            move_block()
-            dy += 1 if taget_dir == E else -1
+        move_block(abs(dy))
 
 def at_color(color_loc, arrive = False):
     global is_in_color
@@ -188,7 +192,6 @@ def grab_object():
         block_color = "B"
         is_grap_block = True
 
-
     elif bc == Color.RED:
         block_color = "R"
         is_grap_block = True
@@ -217,7 +220,8 @@ block_distance = [[250,370],
 
 want_x, want_y = (0,0)
 
-is_clear = [False, False, False, False] #1 2 3 , 5 9, 6 10, 7 11
+is_clear = [0, 0, 0, 0] #1 2 3 , 5 9, 6 10, 7 11
+clear_loc = 0
 
 def check_block():
     global want_x, want_y
@@ -227,24 +231,24 @@ def check_block():
         dis = ultra_ss.distance()
         print(dis)
         if block_distance[i][0] < dis < block_distance[i][1]:
-            print(i)
             break
         else:
-            i += 1
-    else:
-        i = 0
-        while is_clear[i]:
+            is_clear[clear_loc] += 1
             i += 1
 
-        is_clear[i] = True
-        turn_min(E)
-        move_block(i)
-        turn_min(S)
+    else:
+        for i in range(len(is_clear)):
+            if is_clear[i] != 2:
+                turn_min(E)
+                move_block(max([0,i-1]))
+                
+                if i != 0:
+                    turn_min(S)
 
         return
     
     move_block(i+1)
-    move_block(i+1)
+    manhattan_load((now_x, now_y),(0,0))
 
 grid = [
     [0,1,1,2],
