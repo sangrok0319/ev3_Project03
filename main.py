@@ -108,7 +108,7 @@ def turn_min(target):
     global now_dir
 
     deff = (target - now_dir) % 4
-    angle = [0, 92, 185, -92][deff]
+    angle = [0, 93, 1808, -93][deff]
     robot.turn(angle)
     now_dir = target
 
@@ -217,6 +217,8 @@ block_distance = [[250,370],
 
 want_x, want_y = (0,0)
 
+is_clear = [False, False, False, False] #1 2 3 , 5 9, 6 10, 7 11
+
 def check_block():
     global want_x, want_y
 
@@ -230,7 +232,15 @@ def check_block():
         else:
             i += 1
     else:
+        i = 0
+        while is_clear[i]:
+            i += 1
+
+        is_clear[i] = True
+        turn_min(E)
+        move_block(i)
         turn_min(S)
+
         return
     
     move_block(i+1)
@@ -248,7 +258,7 @@ robot.settings(
     straight_speed=200,        # 직진 속도 (mm/s)
     straight_acceleration=400,
     turn_rate=260,             # 회전 속도 (deg/s) ← turn() 속도는 이것으로 결정됨
-    turn_acceleration=300
+    turn_acceleration=100
 )
 
 ev3.speaker.beep()
