@@ -32,13 +32,14 @@ ultra_ss = UltrasonicSensor(Port.S2)
 
 # =============================================================
 
-kp = 1 # 가중치
+kp = 1.25 # 가중치
 N,E,S,W = 1,2,3,4
 
 left_reflection = left_cs.reflection()
 right_reflection = right_cs.reflection()
 
 is_dis = 0
+is_in_color = True
 
 now_x, now_y = (0,0)
 
@@ -69,11 +70,13 @@ def move_block(n = 1,speed = 150):
                     is_dis = 0
                     robot.stop()
 
-                    dx, dy = directions[now_dir-1]
-                    now_x, now_y = now_x + dx, now_y + dy
-                    grid[now_x][now_y] = 0
+                    if not is_in_color:
+                        dx, dy = directions[now_dir-1]
+                        now_x, now_y = now_x + dx, now_y + dy
+                        grid[now_x][now_y] = 0
 
-                    print(grid)
+                        for w in grid:
+                            print(w)
 
                     grab_object()
                     turn_min((now_dir+2)%4)
@@ -82,11 +85,13 @@ def move_block(n = 1,speed = 150):
             if right_reflection < 30 or left_reflection < 30:
                 robot.stop()
 
-                dx, dy = directions[now_dir-1]
-                now_x, now_y = now_x + dx, now_y + dy
-                grid[now_x][now_y] = 0
+                if not is_in_color:
+                    dx, dy = directions[now_dir-1]
+                    now_x, now_y = now_x + dx, now_y + dy
+                    grid[now_x][now_y] = 0
 
-                print(grid)
+                    for w in grid:
+                        print(w)
 
                 break
             else:
@@ -138,6 +143,8 @@ def manhattan_load(st, gl, now_dir):
             dy += 1 if taget_dir == E else -1
 
 def at_color(color_loc, arrive = False):
+    global is_in_color
+
     """
     Docstring for at_color
     :param arrive: false면 색에서 출발
@@ -146,6 +153,8 @@ def at_color(color_loc, arrive = False):
 
     loc = [S, W] if arrive else [N, E]
     turn_min(loc[1])
+
+    is_in_color = True
 
     if color_loc == "G":
         move_block(2)
@@ -161,6 +170,8 @@ def at_color(color_loc, arrive = False):
         move_block(2)
         turn_min(loc[1])
         move_block()
+    
+    is_in_color = False
 
 def grab_object():
     global block_color, is_grap_block
@@ -212,12 +223,15 @@ def check_block():
     i = 0
     while i < len(block_distance):
         dis = ultra_ss.distance()
+        print(dis)
         if block_distance[i][0] < dis < block_distance[i][1]:
+            print(i)
             break
         else:
             i += 1
     else:
         turn_min(S)
+        return
     
     move_block(i+1)
     move_block(i+1)
@@ -259,9 +273,11 @@ at_color(block_color)
 
 while True:
     if is_grap_block:
+        turn_min(W)
         at_color(block_color, True)
         release_object(True)
         
         at_color(block_color)
     
     check_block()
+    print("while end")
