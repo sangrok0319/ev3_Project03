@@ -32,7 +32,7 @@ ultra_ss = UltrasonicSensor(Port.S2)
 
 # =============================================================
 
-kp = 0.7 # 가중치
+kp = 1 # 가중치
 N,E,S,W = 1,2,3,4
 
 left_reflection = left_cs.reflection()
@@ -40,47 +40,70 @@ right_reflection = right_cs.reflection()
 
 is_dis = 0
 
+now_x, now_y = (0,0)
+
 class Q:
     def __init__(self):
         self.inven = []
 
-def move_block(speed = 100):
-    global is_grap_block, is_dis
+def move_block(n = 1,speed = 150):
+    global is_grap_block, is_dis, now_x, now_y, grid
 
-    while True:
-        left_reflection = left_cs.reflection()
-        right_reflection = right_cs.reflection()
+    directions = [
+        [-1, 0],
+        [0, 1],
+        [1, 0],
+        [0, -1]
+    ]
 
-        dis = ultra_ss.distance()
-        print(dis)
+    for _ in range(n):
+        while True:
+            left_reflection = left_cs.reflection()
+            right_reflection = right_cs.reflection()
 
-        if dis < 35 and not(is_grap_block):
-            is_dis += 1
-            if is_dis > 2:
-                is_dis = 0
+            dis = ultra_ss.distance()
+
+            if dis < 37 and not(is_grap_block):
+                is_dis += 1
+                if is_dis > 2:
+                    is_dis = 0
+                    robot.stop()
+
+                    dx, dy = directions[now_dir-1]
+                    now_x, now_y = now_x + dx, now_y + dy
+                    grid[now_x][now_y] = 0
+
+                    print(grid)
+
+                    grab_object()
+                    turn_min((now_dir+2)%4)
+                    return
+            
+            if right_reflection < 30 or left_reflection < 30:
                 robot.stop()
-                grab_object()
-                turn_min((now_dir+2)%4)
-                break
-        
-        if right_reflection < 30 or left_reflection < 30:
-            robot.stop()
-            break
-        else:
-            error = left_reflection - right_reflection
-            turn_rate = kp * error
-            robot.drive(speed, turn_rate)
-            wait(10)
 
-    robot.drive(speed, 0)
-    wait(50000/speed)
-    robot.stop()
+                dx, dy = directions[now_dir-1]
+                now_x, now_y = now_x + dx, now_y + dy
+                grid[now_x][now_y] = 0
+
+                print(grid)
+
+                break
+            else:
+                error = left_reflection - right_reflection
+                turn_rate = kp * error
+                robot.drive(speed, turn_rate)
+                wait(10)
+
+        robot.drive(speed, 0)
+        wait(50000/speed)
+        robot.stop()
 
 def turn_min(target):
     global now_dir
 
     deff = (target - now_dir) % 4
-    angle = [0, 90, 180, -90][deff]
+    angle = [0, 92, 185, -92][deff]
     robot.turn(angle)
     now_dir = target
 
@@ -115,14 +138,17 @@ def manhattan_load(st, gl, now_dir):
             dy += 1 if taget_dir == E else -1
 
 def at_color(color_loc, arrive = False):
+    """
+    Docstring for at_color
+    :param arrive: false면 색에서 출발
+    """
     global now_dir
 
     loc = [S, W] if arrive else [N, E]
     turn_min(loc[1])
 
     if color_loc == "G":
-        for _ in range(2):
-            move_block()
+        move_block(2)
     elif color_loc == "R":
         move_block()
         turn_min(loc[0])
@@ -132,8 +158,7 @@ def at_color(color_loc, arrive = False):
     else:
         move_block()
         turn_min(loc[0])
-        for _ in range(2):
-            move_block()
+        move_block(2)
         turn_min(loc[1])
         move_block()
 
@@ -158,7 +183,7 @@ def grab_object():
         is_grap_block = True
 
 
-def release_object():
+def release_object(is_b = False):
     global is_grap_block
 
     ev3.speaker.beep()
@@ -166,14 +191,56 @@ def release_object():
     sub_motor.run_until_stalled(-300, then = Stop.COAST, duty_limit = 50)
     is_grap_block = False
 
+    if is_b:
+        robot.drive(100, 0)
+        wait(1250)
+        robot.drive(-100, 0)
+        wait(1250)
+
+        turn_min(E)
+
 #-----------------------------------------------------------
+
+block_distance = [[250,370],
+                  [670,748]]
+
+want_x, want_y = (0,0)
+
+def check_block():
+    global want_x, want_y
+
+    i = 0
+    while i < len(block_distance):
+        dis = ultra_ss.distance()
+        if block_distance[i][0] < dis < block_distance[i][1]:
+            break
+        else:
+            i += 1
+    else:
+        turn_min(S)
+    
+    move_block(i+1)
+    move_block(i+1)
+
+grid = [
+    [0,1,1,2],
+    [1,1,1,2],
+    [1,1,1,2]
+]
+
+#-----------------------------------------------------------
+
+robot.settings(
+    straight_speed=200,        # 직진 속도 (mm/s)
+    straight_acceleration=400,
+    turn_rate=260,             # 회전 속도 (deg/s) ← turn() 속도는 이것으로 결정됨
+    turn_acceleration=300
+)
 
 ev3.speaker.beep()
 
-st = (0,0)
-gl = (1,2)
-
 is_grap_block = False
+
 now_dir = E
 
 block_color = "G"
@@ -182,10 +249,19 @@ while True:
     if any(ev3.buttons.pressed()):
         break
 
+# while True:
+#     dis = ultra_ss.distance()
+#     print(dis)
+
 release_object()
 
-at_color("G")
+at_color(block_color)
 
-if is_grap_block:
-    at_color(block_color, True)
-    release_object()
+while True:
+    if is_grap_block:
+        at_color(block_color, True)
+        release_object(True)
+        
+        at_color(block_color)
+    
+    check_block()
