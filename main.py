@@ -79,7 +79,7 @@ def move_block(n = 1,speed = 190):
                 wait(10)
 
         robot.drive(speed, 0)
-        wait(50000/(speed*0.91))
+        wait(50000/(speed*0.94))
 
 def turn_min(target):
     global now_dir, angle_lst
@@ -160,14 +160,16 @@ def release_object(is_b = False):
 
     ev3.speaker.beep()
 
+    robot.stop()
+
     sub_motor.run_until_stalled(-300, then = Stop.COAST, duty_limit = 50)
     is_grap_block = False
 
     if is_b:
         # robot.drive(100, 0)
         # wait(1250)
-        robot.drive(-100, 0)
-        wait(1250)
+        robot.drive(-200, 0)
+        wait(1000)
 
         turn_min(E)
 
@@ -256,7 +258,7 @@ grid = [
 ]
 
 N,E,S,W = 1,2,3,4
-angle_lst = [0, 90, 205, -95]
+angle_lst = [0, 98, 205, -95]
 
 now_x, now_y = (0,0)
 now_dir = E
@@ -340,7 +342,15 @@ def check_bonus():
     print("dis :",dis)
 
     if block_distance[i][0] < dis < block_distance[i][1]:
-        move_block()
+        robot.straight(440)
+
+        grab_object()
+
+        robot.straight(-440)
+
+        angle_lst = [0, 112, 180, -90]
+
+        turn_min(W)
     else:
         robot.straight(400)
         turn_min(S)
@@ -351,14 +361,16 @@ def check_bonus():
         grab_object()
         robot.straight(-dis - 60)
 
-        angle_lst = [0, 110, 180, -90]
+        angle_lst = [0, 107, 180, -90]
 
         turn_min(W)
+        
+        now_y +=1
 
     move_block()
     turn_min(W)
 
-    now_y +=1
+    print(now_x, now_y)
     
     manhattan_load((now_x,now_y),(0,0))
     at_color(block_color,True)
