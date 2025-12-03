@@ -32,7 +32,7 @@ ultra_ss = UltrasonicSensor(Port.S2)
 
 # =============================================================
 
-def move_block(n = 1,speed = 160):
+def move_block(n = 1,speed = 190):
     global is_grap_block, is_dis, now_x, now_y, grid
 
     for _ in range(n):
@@ -62,7 +62,6 @@ def move_block(n = 1,speed = 160):
                     return
             
             if right_reflection < 30 or left_reflection < 30:
-                robot.stop()
 
                 if not is_in_color:
                     dx, dy = directions[now_dir-1]
@@ -81,7 +80,6 @@ def move_block(n = 1,speed = 160):
 
         robot.drive(speed, 0)
         wait(50000/(speed*0.91))
-        robot.stop()
 
 def turn_min(target):
     global now_dir, angle_lst
@@ -106,8 +104,6 @@ def turn_min(target):
         right_reflection = right_cs.reflection()
 
         error = left_reflection - right_reflection
-
-    robot.stop()
 
 def at_color(color_loc, arrive = False):
     global is_in_color
@@ -240,11 +236,10 @@ def manhattan_load(st, gl):
 #-----------------------------------------------------------
 
 robot.settings(
-    straight_speed=150,        # 직진 속도 (mm/s)
+    straight_speed=190,        # 직진 속도 (mm/s)
     straight_acceleration=400,
-    turn_rate=400,             # 회전 속도 (deg/s) ← turn() 속도는 이것으로 결정됨
-    turn_acceleration=100
-
+    turn_rate=500,             # 회전 속도 (deg/s) ← turn() 속도는 이것으로 결정됨
+    turn_acceleration=300
 )
 
 directions = [
@@ -268,7 +263,7 @@ now_dir = E
 
 block_color = "G"
 
-kp = 1.75 # 가중치
+kp = 2.25 # 가중치
 
 is_dis = 0
 is_grap_block = False
@@ -351,30 +346,22 @@ def check_bonus():
         turn_min(S)
 
         dis = ultra_ss.distance()
-        robot.straight(dis + 100)
+        robot.straight(dis + 60)
 
         grab_object()
-        robot.straight(-dis - 100)
+        robot.straight(-dis - 60)
 
         angle_lst = [0, 110, 180, -90]
 
         turn_min(W)
 
     move_block()
+    turn_min(W)
+
     now_y +=1
+    
     manhattan_load((now_x,now_y),(0,0))
     at_color(block_color,True)
-    
-    print(is_clear)
-
-    move_block(i+1)
-
-    if not is_grap_block:
-        robot.drive(-150,0)
-        wait(1250)
-        turn_min((now_dir+2)%4)
-
-    manhattan_load((now_x, now_y),(0,0))
 
 is_clear = [0,0,0]
 clear_loc = 0
