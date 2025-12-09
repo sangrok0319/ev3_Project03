@@ -83,6 +83,7 @@ def move_block(n = 1,speed = 230):
         wait(50000/(speed*0.9))
 
         if i != n-1:
+            print('in 보정')
             left_reflection = left_cs.reflection()
             right_reflection = right_cs.reflection()
 
@@ -282,7 +283,7 @@ now_dir = E
 block_count = -1
 block_color = "G"
 
-kp = 1.7 # 가중치
+kp = 1.6 # 가중치
 
 is_dis = 0
 is_grap_block = False
@@ -376,7 +377,7 @@ def check_bonus():
         grab_object()
         robot.straight(-dis - 40)
 
-        angle_lst = [0, 98, 180, -90]
+        angle_lst = [0, 95, 180, -90]
 
         turn_min(W)
         
@@ -385,7 +386,8 @@ def check_bonus():
     move_block()
     turn_min(W)
     
-    manhattan_load((now_x,now_y),(0,0))
+    print(now_x, now_y)
+    manhattan_load((0,now_y),(0,0))
     at_color(block_color,True)
 
 is_clear = [0,0,0]
