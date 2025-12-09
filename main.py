@@ -32,10 +32,10 @@ ultra_ss = UltrasonicSensor(Port.S2)
 
 # =============================================================
 
-def move_block(n = 1,speed = 190):
+def move_block(n = 1,speed = 230):
     global is_grap_block, is_dis, now_x, now_y, grid
 
-    for _ in range(n):
+    for i in range(n):
 
         while True:
             left_reflection = left_cs.reflection()
@@ -61,7 +61,8 @@ def move_block(n = 1,speed = 190):
                     turn_min((now_dir+2)%4)
                     return
             
-            if right_reflection < 30 or left_reflection < 30:
+            if right_reflection < 21 or left_reflection < 21:
+                print(left_reflection, right_reflection)
 
                 if not is_in_color:
                     dx, dy = directions[now_dir-1]
@@ -79,7 +80,23 @@ def move_block(n = 1,speed = 190):
                 wait(10)
 
         robot.drive(speed, 0)
-        wait(50000/(speed*0.91))
+        wait(50000/(speed*0.9))
+
+        if i != n-1:
+            print('in 보정')
+            left_reflection = left_cs.reflection()
+            right_reflection = right_cs.reflection()
+
+            error = left_reflection - right_reflection
+            while abs(error) > 13:
+                turn_rate = kp * error
+                robot.drive(speed, turn_rate)
+                wait(5)
+
+                left_reflection = left_cs.reflection()
+                right_reflection = right_cs.reflection()
+
+                error = left_reflection - right_reflection
 
 def turn_min(target):
     global now_dir, angle_lst
@@ -135,16 +152,21 @@ def at_color(color_loc, arrive = False):
         move_block()
     
     is_in_color = False
+    
+    if arrive:
+        robot.stop()
 
 def grab_object():
     global block_color, is_grap_block
     ev3.speaker.beep()
-    sub_motor.run_until_stalled(200, then = Stop.COAST, duty_limit = 50)
+    sub_motor.run_until_stalled(500, then = Stop.COAST, duty_limit = 50)
     
     bc = middle_cs.color()
 
+    print(bc)
     if bc == None:
-        print("None")
+        block_color = "G"
+        is_grap_block = True
 
     elif bc != Color.RED:
         block_color = "B"
@@ -156,26 +178,27 @@ def grab_object():
 
 
 def release_object(is_b = False):
-    global is_grap_block
+    global is_grap_block, block_count
 
+    robot.stop()
     ev3.speaker.beep()
 
-    sub_motor.run_until_stalled(-300, then = Stop.COAST, duty_limit = 50)
+    sub_motor.run_until_stalled(-500, then = Stop.COAST, duty_limit = 50)
     is_grap_block = False
+
+    block_count += 1
 
     if is_b:
         # robot.drive(100, 0)
         # wait(1250)
-        robot.drive(-100, 0)
-        wait(1250)
+        robot.drive(-200, 0)
+        wait(800)
 
         turn_min(E)
 
 def check_block():
     i = 0
     global clear_loc
-
-    print("clear_loc :",clear_loc)
 
     if clear_loc != 0:
         turn_min(E)
@@ -203,12 +226,8 @@ def check_block():
             if is_clear[clear_loc] >= 2:
                 clear_loc+= 1
     else:
-        print(is_clear)
-
         return
     
-    print(is_clear)
-
     move_block(i+1)
 
     if not is_grap_block:
@@ -236,7 +255,7 @@ def manhattan_load(st, gl):
 #-----------------------------------------------------------
 
 robot.settings(
-    straight_speed=190,        # 직진 속도 (mm/s)
+    straight_speed=210,        # 직진 속도 (mm/s)
     straight_acceleration=400,
     turn_rate=500,             # 회전 속도 (deg/s) ← turn() 속도는 이것으로 결정됨
     turn_acceleration=300
@@ -256,14 +275,15 @@ grid = [
 ]
 
 N,E,S,W = 1,2,3,4
-angle_lst = [0, 90, 205, -95]
+angle_lst = [0, 96, 185, -99]
 
 now_x, now_y = (0,0)
 now_dir = E
 
+block_count = -1
 block_color = "G"
 
-kp = 2.25 # 가중치
+kp = 1.6 # 가중치
 
 is_dis = 0
 is_grap_block = False
@@ -291,6 +311,7 @@ while True:
 release_object()
 
 at_color(block_color)
+robot.stop()
 
 ev3.speaker.beep()
 
@@ -300,8 +321,7 @@ while True:
         at_color(block_color, True)
         release_object(True)
 
-        print(is_clear)
-        if sum(is_clear) >= 8:
+        if sum(is_clear) >= 8 or block_count == 4:
             move_block()
             turn_min(N)
 
@@ -334,33 +354,40 @@ def check_bonus():
     i = 0
     global clear_loc, now_y, angle_lst
 
-    print("clear_loc :",clear_loc)
-
     dis = ultra_ss.distance()
     print("dis :",dis)
 
     if block_distance[i][0] < dis < block_distance[i][1]:
-        move_block()
+        robot.straight(440)
+
+        grab_object()
+
+        robot.straight(-440)
+
+        angle_lst = [0, 112, 185, -90]
+
+        turn_min(W)
     else:
         robot.straight(400)
         turn_min(S)
 
         dis = ultra_ss.distance()
-        robot.straight(dis + 60)
+        robot.straight(dis + 40)
 
         grab_object()
-        robot.straight(-dis - 60)
+        robot.straight(-dis - 40)
 
-        angle_lst = [0, 110, 180, -90]
+        angle_lst = [0, 95, 180, -90]
 
         turn_min(W)
+        
+        now_y +=1
 
     move_block()
     turn_min(W)
-
-    now_y +=1
     
-    manhattan_load((now_x,now_y),(0,0))
+    print(now_x, now_y)
+    manhattan_load((0,now_y),(0,0))
     at_color(block_color,True)
 
 is_clear = [0,0,0]
@@ -371,3 +398,5 @@ at_color('G')
 move_block(2)
 
 check_bonus()
+
+robot.stop()
