@@ -32,10 +32,10 @@ ultra_ss = UltrasonicSensor(Port.S2)
 
 # =============================================================
 
-def move_block(n = 1,speed = 190):
+def move_block(n = 1,speed = 210):
     global is_grap_block, is_dis, now_x, now_y, grid
 
-    for _ in range(n):
+    for i in range(n):
 
         while True:
             left_reflection = left_cs.reflection()
@@ -61,7 +61,8 @@ def move_block(n = 1,speed = 190):
                     turn_min((now_dir+2)%4)
                     return
             
-            if right_reflection < 30 or left_reflection < 30:
+            if right_reflection < 21 or left_reflection < 21:
+                print(left_reflection, right_reflection)
 
                 if not is_in_color:
                     dx, dy = directions[now_dir-1]
@@ -79,7 +80,22 @@ def move_block(n = 1,speed = 190):
                 wait(10)
 
         robot.drive(speed, 0)
-        wait(50000/(speed*0.94))
+        wait(50000/(speed*0.9))
+
+        if i != n-1:
+            left_reflection = left_cs.reflection()
+            right_reflection = right_cs.reflection()
+
+            error = left_reflection - right_reflection
+            while abs(error) > 16:
+                turn_rate = kp * error
+                robot.drive(speed, turn_rate)
+                wait(5)
+
+                left_reflection = left_cs.reflection()
+                right_reflection = right_cs.reflection()
+
+                error = left_reflection - right_reflection
 
 def turn_min(target):
     global now_dir, angle_lst
@@ -139,12 +155,14 @@ def at_color(color_loc, arrive = False):
 def grab_object():
     global block_color, is_grap_block
     ev3.speaker.beep()
-    sub_motor.run_until_stalled(200, then = Stop.COAST, duty_limit = 50)
+    sub_motor.run_until_stalled(500, then = Stop.COAST, duty_limit = 50)
     
     bc = middle_cs.color()
 
+    print(bc)
     if bc == None:
-        print("None")
+        block_color = "G"
+        is_grap_block = True
 
     elif bc != Color.RED:
         block_color = "B"
@@ -162,7 +180,7 @@ def release_object(is_b = False):
 
     robot.stop()
 
-    sub_motor.run_until_stalled(-300, then = Stop.COAST, duty_limit = 50)
+    sub_motor.run_until_stalled(-500, then = Stop.COAST, duty_limit = 50)
     is_grap_block = False
 
     if is_b:
@@ -176,8 +194,6 @@ def release_object(is_b = False):
 def check_block():
     i = 0
     global clear_loc
-
-    print("clear_loc :",clear_loc)
 
     if clear_loc != 0:
         turn_min(E)
@@ -205,12 +221,8 @@ def check_block():
             if is_clear[clear_loc] >= 2:
                 clear_loc+= 1
     else:
-        print(is_clear)
-
         return
     
-    print(is_clear)
-
     move_block(i+1)
 
     if not is_grap_block:
@@ -258,7 +270,7 @@ grid = [
 ]
 
 N,E,S,W = 1,2,3,4
-angle_lst = [0, 98, 205, -95]
+angle_lst = [0, 96, 185, -99]
 
 now_x, now_y = (0,0)
 now_dir = E
@@ -293,6 +305,7 @@ while True:
 release_object()
 
 at_color(block_color)
+robot.stop()
 
 ev3.speaker.beep()
 
@@ -302,7 +315,6 @@ while True:
         at_color(block_color, True)
         release_object(True)
 
-        print(is_clear)
         if sum(is_clear) >= 8:
             move_block()
             turn_min(N)
@@ -336,8 +348,6 @@ def check_bonus():
     i = 0
     global clear_loc, now_y, angle_lst
 
-    print("clear_loc :",clear_loc)
-
     dis = ultra_ss.distance()
     print("dis :",dis)
 
@@ -348,7 +358,7 @@ def check_bonus():
 
         robot.straight(-440)
 
-        angle_lst = [0, 112, 180, -90]
+        angle_lst = [0, 112, 185, -90]
 
         turn_min(W)
     else:
@@ -361,7 +371,8 @@ def check_bonus():
         grab_object()
         robot.straight(-dis - 60)
 
-        angle_lst = [0, 107, 180, -90]
+        angle_lst = [0, 95, 180, -90]
+
 
         turn_min(W)
         
@@ -369,8 +380,6 @@ def check_bonus():
 
     move_block()
     turn_min(W)
-
-    print(now_x, now_y)
     
     manhattan_load((now_x,now_y),(0,0))
     at_color(block_color,True)
@@ -383,3 +392,5 @@ at_color('G')
 move_block(2)
 
 check_bonus()
+
+robot.stop()
